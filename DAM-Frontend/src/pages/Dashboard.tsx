@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { uploadFiles, clearFiles } from '../store/slices/uploadSlice'
 import type { RootState } from '../store/store'
 import {
@@ -26,10 +26,6 @@ export default function Dashboard() {
   } = useAppSelector((state: RootState) => state.upload)
   const { showError } = useToast()
   const [showUploadSummary, setShowUploadSummary] = useState(false)
-
-  const handleFileSelect = useCallback((_file: File[]) => {
-    // Files are already added to the store in FileUploadArea component
-  }, [])
 
   // Handle error notifications
   useEffect(() => {
@@ -94,7 +90,7 @@ export default function Dashboard() {
 
           {/* Centered Upload Area with Enhanced Spacing */}
           <div className="flex justify-center items-center mb-16">
-            <FileUploadArea onFileSelect={handleFileSelect} />
+            <FileUploadArea />
           </div>
         </div>
 

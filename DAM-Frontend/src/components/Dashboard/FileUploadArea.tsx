@@ -11,11 +11,7 @@ import { addFiles } from '../../store/slices/uploadSlice'
 import { fileRegistry } from '../../utils/fileRegistry'
 import { useToast } from '../../hooks/useToast'
 
-interface FileUploadAreaProps {
-  onFileSelect: (files: File[]) => void
-}
-
-export default function FileUploadArea({ onFileSelect }: FileUploadAreaProps) {
+export default function FileUploadArea() {
   const dispatch = useAppDispatch()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { showSuccess, showError } = useToast()
@@ -64,7 +60,6 @@ export default function FileUploadArea({ onFileSelect }: FileUploadAreaProps) {
         })
 
         dispatch(addFiles(filesWithPreview))
-        onFileSelect(validFiles)
 
         // Show success message
         if (validFiles.length === 1) {
@@ -74,7 +69,7 @@ export default function FileUploadArea({ onFileSelect }: FileUploadAreaProps) {
         }
       }
     },
-    [dispatch, onFileSelect, showSuccess, showError]
+    [dispatch, showSuccess, showError]
   )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
