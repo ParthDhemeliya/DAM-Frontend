@@ -1,2 +1,8 @@
-/** Tailwind v4 uses the default config; leave file minimal for future customizations */
-export default {}
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}

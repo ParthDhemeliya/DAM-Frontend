@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { uploadFiles, clearFiles } from '../store/slices/uploadSlice'
 import type { RootState } from '../store/store'
 import {
-  Header,
   FileUploadArea,
   FileList,
   FeaturesGrid,
@@ -72,14 +71,12 @@ export default function Dashboard() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-cyan-400/10 to-blue-500/10 rounded-full blur-3xl"></div>
       </div>
 
-      <Header />
-
       {/* Main Content */}
-      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Main Action Section - Enhanced */}
         <div className="text-center">
-          <div className="mb-20">
-            <h1 className="text-6xl md:text-7xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-8 leading-tight tracking-tight">
+          <div className="mb-16">
+            <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-8 leading-tight tracking-tight">
               Manage Digital Assets
             </h1>
 

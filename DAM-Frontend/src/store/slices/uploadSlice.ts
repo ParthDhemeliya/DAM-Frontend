@@ -250,6 +250,7 @@ const uploadSlice = createSlice({
           let skipped: string[] = []
 
           if (action.payload.data && Array.isArray(action.payload.data)) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             action.payload.data.forEach((asset: any) => {
               const fileName =
                 asset.original_name || asset.filename || asset.name
