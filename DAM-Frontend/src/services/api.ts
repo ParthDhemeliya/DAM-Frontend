@@ -169,7 +169,7 @@ export const searchAssets = async (
 ): Promise<any> => {
   try {
     const params = new URLSearchParams({
-      query,
+      q: query,
       page: page.toString(),
       limit: limit.toString(),
     })

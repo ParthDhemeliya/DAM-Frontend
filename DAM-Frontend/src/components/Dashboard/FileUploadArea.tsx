@@ -6,18 +6,27 @@ import {
   FilmIcon,
   DocumentTextIcon,
 } from '@heroicons/react/24/outline'
-import { useAppDispatch } from '../../store/hooks'
+import { useAppDispatch, useAppSelector } from '../../store/hooks'
 import { addFiles } from '../../store/slices/uploadSlice'
 import { fileRegistry } from '../../utils/fileRegistry'
 import { useToast } from '../../hooks/useToast'
 
 export default function FileUploadArea() {
   const dispatch = useAppDispatch()
+  const { files } = useAppSelector((state) => state.upload)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { showSuccess, showError } = useToast()
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
+      // Check if user is trying to select more than 50 files
+      if (acceptedFiles.length > 50) {
+        showError(
+          `You can only select a maximum of 50 files at once. You selected ${acceptedFiles.length} files.`
+        )
+        return
+      }
+
       // Validate files before adding
       const maxSize = 100 * 1024 * 1024 // 100MB
       const allowedTypes = ['image/', 'video/', 'application/pdf', 'text/']
@@ -113,6 +122,13 @@ export default function FileUploadArea() {
           onChange={(event) => {
             const selectedFiles = Array.from(event.target.files || [])
             if (selectedFiles.length > 0) {
+              // Check if user is trying to select more than 50 files
+              if (selectedFiles.length > 50) {
+                showError(
+                  `You can only select a maximum of 50 files at once. You selected ${selectedFiles.length} files.`
+                )
+                return
+              }
               onDrop(selectedFiles)
             }
           }}
@@ -188,6 +204,30 @@ export default function FileUploadArea() {
           <p className="text-sm text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full inline-block">
             Supports: Images, Videos, PDFs, Documents, Spreadsheets, Text files
           </p>
+
+          {/* File Limit Info */}
+          <p className="text-xs text-gray-400 mt-2 text-center">
+            Maximum 50 files can be uploaded at once
+          </p>
+
+          {/* File Limit Warnings */}
+          {files.length >= 40 && files.length < 50 && (
+            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-yellow-800 text-xs text-center">
+                ⚠️ You're approaching the limit. You can only upload a maximum
+                of 50 files at once.
+              </p>
+            </div>
+          )}
+
+          {files.length === 50 && (
+            <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+              <p className="text-orange-800 text-xs text-center">
+                🚫 You've reached the maximum limit of 50 files. Remove some
+                files before adding more.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Hover Effect Overlay */}

@@ -1,13 +1,19 @@
-import React from 'react'
-import { XCircleIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react'
+import {
+  XCircleIcon,
+  ArrowDownTrayIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline'
 import type { Asset } from '../../interfaces'
-import { streamAsset } from '../../services/api'
+import { streamAsset, deleteAsset } from '../../services/api'
+import { toast } from 'react-toastify'
 
 interface PreviewModalProps {
   previewOpen: boolean
   previewAsset: Asset | null
   onClose: () => void
   onDownload: (asset: Asset) => void
+  onAssetDeleted?: (deletedAssetId: number) => void
   formatFileSize: (bytes: number) => string
   formatDate: (dateString: string) => string
 }
@@ -17,11 +23,97 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   previewAsset,
   onClose,
   onDownload,
+  onAssetDeleted,
   formatFileSize,
   formatDate,
 }) => {
+  const [imageError, setImageError] = useState(false)
+  const [videoError, setVideoError] = useState(false)
+  const [streamUrl, setStreamUrl] = useState<string>('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  useEffect(() => {
+    if (previewAsset) {
+      const url = streamAsset(previewAsset.id)
+      setStreamUrl(url)
+      console.log('Preview URL:', url)
+      console.log('Asset ID:', previewAsset.id)
+      console.log('Asset type:', previewAsset.mime_type)
+
+      // Reset error states
+      setImageError(false)
+      setVideoError(false)
+    }
+  }, [previewAsset])
+
+  // Handle escape key to close delete confirmation
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && showDeleteConfirm) {
+        handleDeleteCancel()
+      }
+    }
+
+    if (showDeleteConfirm) {
+      document.addEventListener('keydown', handleEscape)
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [showDeleteConfirm])
+
   if (!previewOpen || !previewAsset) {
     return null
+  }
+
+  const handleImageError = () => {
+    console.error('Image failed to load:', streamUrl)
+    setImageError(true)
+  }
+
+  const handleVideoError = () => {
+    console.error('Video failed to load:', streamUrl)
+    setVideoError(true)
+  }
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDeleteCancel = () => {
+    setShowDeleteConfirm(false)
+  }
+
+  const handleDeleteConfirm = async () => {
+    try {
+      setIsDeleting(true)
+      setShowDeleteConfirm(false)
+
+      await deleteAsset(previewAsset.id.toString())
+
+      toast.success(
+        `Asset "${previewAsset.original_name}" deleted successfully`
+      )
+
+      // Notify parent component to refresh the list
+      if (onAssetDeleted) {
+        onAssetDeleted(previewAsset.id)
+      }
+
+      // Close the modal after successful deletion
+      onClose()
+    } catch (error) {
+      console.error('Error deleting asset:', error)
+      toast.error(
+        `Failed to delete asset: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      )
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -43,17 +135,61 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
         <div className="p-4 bg-gray-50">
           <div className="w-full aspect-video bg-black flex items-center justify-center">
             {previewAsset.mime_type.startsWith('image/') ? (
-              <img
-                src={streamAsset(previewAsset.id)}
-                alt={previewAsset.original_name}
-                className="max-h-[70vh] object-contain"
-              />
+              imageError ? (
+                <div className="text-center p-8 text-red-500">
+                  <svg
+                    className="mx-auto h-12 w-12 mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                  <p className="text-sm">Failed to load image</p>
+                  <p className="text-xs text-gray-400 mt-1">URL: {streamUrl}</p>
+                </div>
+              ) : (
+                <img
+                  src={streamUrl}
+                  alt={previewAsset.original_name}
+                  className="max-h-[70vh] object-contain"
+                  onError={handleImageError}
+                  crossOrigin="anonymous"
+                />
+              )
             ) : previewAsset.mime_type.startsWith('video/') ? (
-              <video
-                src={streamAsset(previewAsset.id)}
-                controls
-                className="w-full h-full"
-              />
+              videoError ? (
+                <div className="text-center p-8 text-red-500">
+                  <svg
+                    className="mx-auto h-12 w-12 mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                  <p className="text-sm">Failed to load video</p>
+                  <p className="text-xs text-gray-400 mt-1">URL: {streamUrl}</p>
+                </div>
+              ) : (
+                <video
+                  src={streamUrl}
+                  controls
+                  className="w-full h-full"
+                  onError={handleVideoError}
+                  crossOrigin="anonymous"
+                />
+              )
             ) : (
               <div className="text-center p-8 text-gray-300">
                 <svg
@@ -95,14 +231,59 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
               Download
             </button>
             <button
-              onClick={onClose}
-              className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              onClick={handleDeleteClick}
+              disabled={isDeleting}
+              className="inline-flex items-center px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Close
+              <TrashIcon className="h-5 w-5 mr-2" />
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={handleDeleteCancel}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center mb-4">
+              <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <TrashIcon className="h-6 w-6 text-red-600" />
+              </div>
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Delete Asset
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Are you sure you want to delete "{previewAsset.original_name}"?
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-center space-x-3">
+                <button
+                  onClick={handleDeleteCancel}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={isDeleting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

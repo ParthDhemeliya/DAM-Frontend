@@ -39,6 +39,16 @@ export default function Upload() {
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
+      // Check if user is trying to select more than 50 files
+      if (acceptedFiles.length > 50) {
+        // Since this component doesn't have direct access to toast, we'll use a simple alert
+        // or you can add toast functionality here
+        alert(
+          `You can only select a maximum of 50 files at once. You selected ${acceptedFiles.length} files.`
+        )
+        return
+      }
+
       const filesWithPreview = acceptedFiles.map((file) => ({
         ...file,
         id: `${file.name}-${Date.now()}`,
@@ -72,6 +82,13 @@ export default function Upload() {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || [])
     if (selectedFiles.length > 0) {
+      // Check if user is trying to select more than 50 files
+      if (selectedFiles.length > 50) {
+        alert(
+          `You can only select a maximum of 50 files at once. You selected ${selectedFiles.length} files.`
+        )
+        return
+      }
       onDrop(selectedFiles)
     }
   }
@@ -145,6 +162,9 @@ export default function Upload() {
               Supports: Images, Videos, PDFs, Documents, Spreadsheets, Text
               files
             </p>
+            <p className="text-xs text-gray-400 mt-2">
+              Maximum 50 files can be uploaded at once
+            </p>
           </div>
         </div>
 
@@ -171,6 +191,25 @@ export default function Upload() {
                 </button>
               </div>
             </div>
+
+            {/* File Limit Warning */}
+            {files.length >= 40 && files.length < 50 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <p className="text-yellow-800 text-sm">
+                  ⚠️ You're approaching the limit. You can only upload a maximum
+                  of 50 files at once.
+                </p>
+              </div>
+            )}
+
+            {files.length === 50 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                <p className="text-orange-800 text-sm">
+                  🚫 You've reached the maximum limit of 50 files. Remove some
+                  files before adding more.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-3">
               {files.map((file) => {

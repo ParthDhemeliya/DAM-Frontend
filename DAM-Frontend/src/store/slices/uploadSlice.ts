@@ -1,10 +1,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
-import {
-  uploadAssetsWithProgress,
-  type UploadResponse,
-} from '../../services/api'
+import { uploadAssetsWithProgress } from '../../services/api'
 import { fileRegistry } from '../../utils/fileRegistry'
+import type { UploadResponse } from '../../interfaces'
 
 interface FileWithPreview {
   id: string

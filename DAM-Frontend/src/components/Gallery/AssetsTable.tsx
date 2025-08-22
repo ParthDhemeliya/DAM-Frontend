@@ -69,10 +69,7 @@ const AssetsTable: React.FC<AssetsTableProps> = ({
                 Created
               </th>
               <th className="px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Preview
-              </th>
-              <th className="px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Download
+                Actions
               </th>
             </tr>
           </thead>
@@ -142,24 +139,29 @@ const AssetsTable: React.FC<AssetsTableProps> = ({
                   {formatDate(asset.created_at)}
                 </td>
                 <td className="px-2 sm:px-4 lg:px-6 py-4 text-xs sm:text-sm text-gray-500">
-                  <button
-                    onClick={() => onPreview(asset)}
-                    className="inline-flex items-center px-2 sm:px-3 py-1 border border-transparent text-xs sm:text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                  >
-                    <EyeIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                    <span className="hidden sm:inline">Preview</span>
-                    <span className="sm:hidden">View</span>
-                  </button>
-                </td>
-                <td className="px-2 sm:px-4 lg:px-6 py-4 text-xs sm:text-sm text-gray-500">
-                  <button
-                    onClick={() => onDownload(asset)}
-                    className="inline-flex items-center px-2 sm:px-3 py-1 border border-transparent text-xs sm:text-sm leading-4 font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-                  >
-                    <ArrowDownTrayIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                    <span className="hidden sm:inline">Download</span>
-                    <span className="sm:hidden">DL</span>
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    {/* Preview Button */}
+                    <button
+                      onClick={() => onPreview(asset)}
+                      className="inline-flex items-center px-2 sm:px-3 py-1 border border-transparent text-xs sm:text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                      title="Preview asset"
+                    >
+                      <EyeIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      <span className="hidden sm:inline">Preview</span>
+                      <span className="sm:hidden">View</span>
+                    </button>
+
+                    {/* Download Button */}
+                    <button
+                      onClick={() => onDownload(asset)}
+                      className="inline-flex items-center px-2 sm:px-3 py-1 border border-transparent text-xs sm:text-sm leading-4 font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                      title="Download asset"
+                    >
+                      <ArrowDownTrayIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      <span className="hidden sm:inline">Download</span>
+                      <span className="sm:hidden">DL</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

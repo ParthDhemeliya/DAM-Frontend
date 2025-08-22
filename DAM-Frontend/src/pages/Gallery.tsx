@@ -280,6 +280,15 @@ export default function Gallery() {
     downloadAsset(asset.id, asset.original_name)
   }, [])
 
+  // Handle asset deletion
+  const handleAssetDeleted = useCallback(
+    (deletedAssetId: number) => {
+      // Refresh the assets list after deletion
+      dispatch(fetchAssetsWithFilters(filters))
+    },
+    [dispatch, filters]
+  )
+
   // Memoized display logic
   const displayAssets = useMemo(
     () => (searchTerm.trim().length >= 2 ? searchResults : filteredAssets),
@@ -391,6 +400,7 @@ export default function Gallery() {
         previewAsset={previewAsset}
         onClose={closePreview}
         onDownload={handleDownload}
+        onAssetDeleted={handleAssetDeleted}
         formatFileSize={formatFileSize}
         formatDate={formatDate}
       />
