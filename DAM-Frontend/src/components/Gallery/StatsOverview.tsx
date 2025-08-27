@@ -37,6 +37,11 @@ const StatsOverview: React.FC<StatsOverviewProps> = ({
     }
 
     fetchStats()
+
+    // Refresh stats every 30 seconds to keep them current
+    const interval = setInterval(fetchStats, 30000)
+    
+    return () => clearInterval(interval)
   }, [])
 
   if (loading) {

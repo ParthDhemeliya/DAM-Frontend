@@ -1,11 +1,11 @@
 import { configureStore } from '@reduxjs/toolkit'
-import uploadReducer from './slices/uploadSlice'
 import assetReducer from './slices/assetSlice'
+import uploadReducer from './slices/uploadSlice'
 
 export const store = configureStore({
   reducer: {
-    upload: uploadReducer,
     assets: assetReducer,
+    upload: uploadReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

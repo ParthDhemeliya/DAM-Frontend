@@ -10,13 +10,10 @@ import {
   setDateRange,
   setSortBy,
   setSortOrder,
+  refreshAssets,
 } from '../store/slices/assetSlice'
 import type { Asset, AssetFilters } from '../interfaces'
-import {
-  trackAssetDownload,
-  trackAssetView,
-  downloadAsset,
-} from '../services/api'
+import { trackAssetView, downloadAsset } from '../services/api'
 import { toast } from 'react-toastify'
 import {
   GalleryHeader,
@@ -49,8 +46,11 @@ export default function Gallery() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState<string>('all')
   const [selectedDateRange, setSelectedDateRange] = useState<string>('all')
+
+  // Preview modal state
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewAsset, setPreviewAsset] = useState<Asset | null>(null)
+
   const initialLoadRef = useRef(false)
 
   // Enhanced file type categorization with better MIME type handling
@@ -98,10 +98,18 @@ export default function Gallery() {
   // Fetch assets on component mount
   useEffect(() => {
     if (!initialLoadRef.current) {
-      dispatch(fetchAssetsWithFilters(filters))
+      dispatch(refreshAssets())
+
+      const initialFilters = {
+        ...filters,
+        sortBy: 'created_at',
+        sortOrder: 'DESC',
+        page: 1,
+      }
+      dispatch(fetchAssetsWithFilters(initialFilters))
       initialLoadRef.current = true
     }
-  }, [dispatch, filters])
+  }, [dispatch])
 
   // Enhanced search with debouncing
   useEffect(() => {
@@ -113,13 +121,21 @@ export default function Gallery() {
           limit: filters.limit || 20,
           fileType: filters.fileType,
           status: filters.status,
-          sortBy: filters.sortBy,
-          sortOrder: filters.sortOrder,
+          sortBy: 'created_at', // Always sort by latest for search
+          sortOrder: 'DESC',
         }
         dispatch(searchAssetsAsync(searchFilters))
       } else if (searchTerm.trim().length === 0) {
         dispatch(clearSearch())
-        dispatch(fetchAssetsWithFilters(filters))
+        // When clearing search, preserve current page and filters
+        dispatch(
+          fetchAssetsWithFilters({
+            ...filters,
+            sortBy: 'created_at',
+            sortOrder: 'DESC',
+            // Don't reset page when clearing search
+          })
+        )
       }
     }, 300) // 300ms debounce
 
@@ -129,7 +145,13 @@ export default function Gallery() {
   // Memoized filter change handler
   const handleFilterChange = useCallback(
     (newFilters: Partial<AssetFilters>) => {
-      const updatedFilters = { ...filters, ...newFilters, page: 1 }
+      const updatedFilters = {
+        ...filters,
+        ...newFilters,
+        page: 1, // Reset page when changing filters (not when changing page)
+        sortBy: 'created_at', // Always sort by latest
+        sortOrder: 'DESC',
+      }
       dispatch(setFilters(updatedFilters))
       dispatch(fetchAssetsWithFilters(updatedFilters))
     },
@@ -237,17 +259,16 @@ export default function Gallery() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }, [])
 
-  // Enhanced date formatting
+  // Enhanced date formatting with multiple format options
   const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString)
-    const now = new Date()
-    const diffTime = Math.abs(now.getTime() - date.getTime())
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-    if (diffDays === 1) return 'Yesterday'
-    if (diffDays <= 7) return `${diffDays} days ago`
-    if (diffDays <= 30) return `${Math.ceil(diffDays / 7)} weeks ago`
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date'
+    }
 
+    // For standard date formatting, just show the date
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -271,20 +292,23 @@ export default function Gallery() {
   const handleDownload = useCallback((asset: Asset) => {
     toast.success('Download successfully!')
 
-    // Track download for analytics
-    trackAssetDownload(asset.id).catch((err) =>
-      console.error('Failed to track download:', err)
-    )
-
-    // Start the actual download
+    // Start the actual download (backend will track the download automatically)
     downloadAsset(asset.id, asset.original_name)
   }, [])
 
   // Handle asset deletion
   const handleAssetDeleted = useCallback(
     (deletedAssetId: number) => {
-      // Refresh the assets list after deletion
-      dispatch(fetchAssetsWithFilters(filters))
+      dispatch(refreshAssets())
+
+      const refreshFilters = {
+        ...filters,
+        sortBy: 'created_at',
+        sortOrder: 'DESC',
+        page: 1,
+      }
+
+      dispatch(fetchAssetsWithFilters(refreshFilters))
     },
     [dispatch, filters]
   )
@@ -357,15 +381,21 @@ export default function Gallery() {
         selectedDateRange={selectedDateRange}
         searchTerm={searchTerm}
       />
-
       {/* Loading State */}
-      {isLoading && <LoadingState />}
+      {isLoading && (
+        <div className="text-center py-12">
+          <LoadingState />
+          <p className="text-sm text-gray-500 mt-4">
+            Loading assets... This may take a moment if the backend is
+            processing large files.
+          </p>
+        </div>
+      )}
 
       {/* Assets Table */}
       {!isLoading && (
         <AssetsTable
           displayAssets={displayAssets}
-          displayPagination={displayPagination}
           getFileTypeCategory={getFileTypeCategory}
           formatFileSize={formatFileSize}
           formatDate={formatDate}
@@ -382,13 +412,17 @@ export default function Gallery() {
           const updatedFilters = {
             ...filters,
             limit: newLimit,
-            page: 1,
+            page: 1, // Reset to first page when changing limit
           }
           dispatch(setFilters(updatedFilters))
           dispatch(fetchAssetsWithFilters(updatedFilters))
         }}
         onPageChange={(newPage) => {
-          const updatedFilters = { ...filters, page: newPage }
+          const updatedFilters = {
+            ...filters,
+            page: newPage,
+            // Preserve existing sort settings
+          }
           dispatch(setFilters(updatedFilters))
           dispatch(fetchAssetsWithFilters(updatedFilters))
         }}

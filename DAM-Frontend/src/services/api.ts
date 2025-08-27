@@ -1,123 +1,172 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { getConfig } from '../config/environment'
 
-const config = getConfig()
-const API_BASE_URL = config.API_BASE_URL
+// API base URL for backend communication
+const API_BASE_URL = 'http://localhost:5000/api'
 
-import type { UploadResponse } from '../interfaces'
+// Timeout utility for fetch requests
+const fetchWithTimeout = async (
+  url: string,
+  options: RequestInit = {},
+  timeout = 30000
+) => {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-export const uploadAssets = async (
-  files: File[],
-  onProgress?: (progress: {
-    currentFile: string
-    fileIndex: number
-    totalFiles: number
-  }) => void
-): Promise<UploadResponse> => {
   try {
-    const totalFiles = files.length
-    const formData = new FormData()
-
-    files.forEach((file) => {
-      formData.append('files', file)
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
     })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timeout - the server took too long to respond')
+    }
+    throw error
+  }
+}
 
-    if (onProgress && files.length > 0) {
-      onProgress({
-        currentFile: files[0].name,
-        fileIndex: 0,
-        totalFiles,
+// Retry utility for failed requests
+const fetchWithRetry = async (
+  url: string,
+  options: RequestInit = {},
+  timeout = 30000,
+  maxRetries = 2
+) => {
+  let lastError: Error
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        // Wait before retrying (exponential backoff)
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.pow(2, attempt) * 1000)
+        )
+      }
+
+      return await fetchWithTimeout(url, options, timeout)
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown error')
+
+      if (attempt === maxRetries) {
+        throw lastError
+      }
+
+      // Only retry on timeout or network errors, not on HTTP errors
+      if (
+        lastError.message.includes('timeout') ||
+        lastError.message.includes('Failed to fetch')
+      ) {
+        continue
+      } else {
+        throw lastError
+      }
+    }
+  }
+
+  throw lastError!
+}
+
+// Upload file function
+export const uploadFile = async (
+  file: File,
+  metadata?: {
+    category?: string
+    description?: string
+    tags?: string
+    author?: string
+    department?: string
+    project?: string
+    duplicateAction?: 'skip' | 'replace' | 'error'
+    replaceAssetId?: number
+  }
+): Promise<any> => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    // Add metadata if provided
+    if (metadata) {
+      Object.entries(metadata).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          formData.append(key, value.toString())
+        }
       })
     }
 
-    const response = await fetch(`${API_BASE_URL}/assets/upload`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/assets/upload`, {
       method: 'POST',
       body: formData,
     })
 
     if (!response.ok) {
-      let errorMessage = 'Upload failed'
-      try {
-        const errorData = await response.json()
-        errorMessage =
-          errorData.error ||
-          errorData.message ||
-          `HTTP ${response.status}: ${response.statusText}`
-      } catch {
-        errorMessage = `HTTP ${response.status}: ${response.statusText}`
-      }
-      throw new Error(errorMessage)
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      )
     }
 
-    const result = await response.json()
-    return result
+    return response.json()
   } catch (error) {
     if (error instanceof Error) {
       throw error
     }
-    throw new Error('Network error occurred during upload')
+    throw new Error('Failed to upload file')
   }
 }
 
-export const uploadAssetsWithProgress = async (
+// Upload multiple files function
+export const uploadMultipleFiles = async (
   files: File[],
-  onProgress?: (progress: {
-    currentFile: string
-    fileIndex: number
-    totalFiles: number
-    bytesUploaded: number
-    totalBytes: number
-    percentage: number
-  }) => void
-): Promise<UploadResponse> => {
-  return new Promise((resolve, reject) => {
+  metadata?: {
+    category?: string
+    description?: string
+    tags?: string
+    author?: string
+    department?: string
+    project?: string
+    duplicateAction?: 'skip' | 'replace' | 'error'
+    replaceAssetId?: number
+  }
+): Promise<any> => {
+  try {
     const formData = new FormData()
-    const totalFiles = files.length
 
+    // Add all files
     files.forEach((file) => {
-      formData.append('files', file)
+      formData.append('file', file)
     })
 
-    const xhr = new XMLHttpRequest()
-    const currentFileIndex = 0
-
-    xhr.upload.addEventListener('progress', (event) => {
-      if (event.lengthComputable && onProgress) {
-        const bytesUploaded = event.loaded
-        const totalBytes = event.total
-        const percentage = Math.round((bytesUploaded / totalBytes) * 100)
-
-        onProgress({
-          currentFile: files[currentFileIndex]?.name || '',
-          fileIndex: currentFileIndex,
-          totalFiles,
-          bytesUploaded,
-          totalBytes,
-          percentage,
-        })
-      }
-    })
-
-    xhr.addEventListener('load', () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const result = JSON.parse(xhr.responseText)
-          resolve(result)
-        } catch {
-          reject(new Error('Invalid response format'))
+    // Add metadata if provided
+    if (metadata) {
+      Object.entries(metadata).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          formData.append(key, value.toString())
         }
-      } else {
-        reject(new Error(`Upload failed with status: ${xhr.status}`))
-      }
+      })
+    }
+
+    const response = await fetchWithTimeout(`${API_BASE_URL}/assets/upload`, {
+      method: 'POST',
+      body: formData,
     })
 
-    xhr.addEventListener('error', () => {
-      reject(new Error('Network error occurred during upload'))
-    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      )
+    }
 
-    xhr.open('POST', `${API_BASE_URL}/assets/upload`)
-    xhr.send(formData)
-  })
+    return response.json()
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('Failed to upload files')
+  }
 }
 
 export const getAssets = async (
@@ -133,6 +182,9 @@ export const getAssets = async (
 
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
+        // Skip page and limit as they're already set above
+        if (key === 'page' || key === 'limit') return
+
         if (value !== undefined && value !== null && value !== '') {
           if (Array.isArray(value)) {
             value.forEach((v) => params.append(key, v))
@@ -143,7 +195,11 @@ export const getAssets = async (
       })
     }
 
-    const response = await fetch(`${API_BASE_URL}/assets?${params}`)
+    const response = await fetchWithRetry(
+      `${API_BASE_URL}/assets?${params}`,
+      {},
+      60000
+    ) // 60 second timeout for assets
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
@@ -176,6 +232,9 @@ export const searchAssets = async (
 
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
+        // Skip page and limit as they're already set above
+        if (key === 'page' || key === 'limit') return
+
         if (value !== undefined && value !== null && value !== '') {
           if (Array.isArray(value)) {
             value.forEach((v) => params.append(key, v))
@@ -186,7 +245,9 @@ export const searchAssets = async (
       })
     }
 
-    const response = await fetch(`${API_BASE_URL}/assets/search?${params}`)
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/assets/search?${params}`
+    )
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
@@ -206,7 +267,7 @@ export const searchAssets = async (
 
 export const getAssetById = async (id: string): Promise<any> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/assets/${id}`)
+    const response = await fetchWithTimeout(`${API_BASE_URL}/assets/${id}`)
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
@@ -224,9 +285,9 @@ export const getAssetById = async (id: string): Promise<any> => {
   }
 }
 
-export const deleteAsset = async (id: string): Promise<any> => {
+export const deleteAsset = async (id: number): Promise<any> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/assets/${id}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/assets/${id}`, {
       method: 'DELETE',
     })
 
@@ -259,7 +320,7 @@ export const downloadAsset = async (id: number, filename?: string) => {
 export const streamAsset = (id: number) => `${API_BASE_URL}/assets/${id}/stream`
 
 export const getDashboardStats = async () => {
-  const response = await fetch(`${API_BASE_URL}/stats`)
+  const response = await fetchWithTimeout(`${API_BASE_URL}/stats`)
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -272,7 +333,9 @@ export const getDashboardStats = async () => {
 }
 
 export const getUploadStats = async (period: string = 'month') => {
-  const response = await fetch(`${API_BASE_URL}/stats/uploads?period=${period}`)
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/stats/uploads?period=${period}`
+  )
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -285,7 +348,7 @@ export const getUploadStats = async (period: string = 'month') => {
 }
 
 export const getDownloadStats = async (period: string = 'month') => {
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `${API_BASE_URL}/stats/downloads?period=${period}`
   )
 
@@ -300,7 +363,9 @@ export const getDownloadStats = async (period: string = 'month') => {
 }
 
 export const getLatestAssets = async (limit: number = 10) => {
-  const response = await fetch(`${API_BASE_URL}/stats/latest?limit=${limit}`)
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/stats/latest?limit=${limit}`
+  )
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -313,7 +378,9 @@ export const getLatestAssets = async (limit: number = 10) => {
 }
 
 export const getPopularAssets = async (limit: number = 10) => {
-  const response = await fetch(`${API_BASE_URL}/stats/popular?limit=${limit}`)
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/stats/popular?limit=${limit}`
+  )
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -326,7 +393,7 @@ export const getPopularAssets = async (limit: number = 10) => {
 }
 
 export const getRealTimeStats = async () => {
-  const response = await fetch(`${API_BASE_URL}/stats/realtime`)
+  const response = await fetchWithTimeout(`${API_BASE_URL}/stats/realtime`)
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -343,7 +410,7 @@ export const trackAssetView = async (
   userId?: string,
   metadata?: any
 ) => {
-  const response = await fetch(`${API_BASE_URL}/stats/track-view`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/stats/track-view`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -366,13 +433,16 @@ export const trackAssetDownload = async (
   userId?: string,
   metadata?: any
 ) => {
-  const response = await fetch(`${API_BASE_URL}/stats/track-download`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ assetId, userId, metadata }),
-  })
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/stats/track-download`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ assetId, userId, metadata }),
+    }
+  )
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -385,7 +455,7 @@ export const trackAssetDownload = async (
 }
 
 export const getAssetAnalytics = async (assetId: number) => {
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `${API_BASE_URL}/stats/asset/${assetId}/analytics`
   )
 
@@ -400,7 +470,9 @@ export const getAssetAnalytics = async (assetId: number) => {
 }
 
 export const getUserBehaviorAnalytics = async (userId: string) => {
-  const response = await fetch(`${API_BASE_URL}/stats/user/${userId}/behavior`)
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/stats/user/${userId}/behavior`
+  )
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
@@ -410,4 +482,146 @@ export const getUserBehaviorAnalytics = async (userId: string) => {
   }
 
   return response.json()
+}
+
+// Jobs API functions
+export const getJobs = async (
+  page: number = 1,
+  limit: number = 20
+): Promise<any> => {
+  try {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    })
+
+    const response = await fetchWithTimeout(`${API_BASE_URL}/jobs?${params}`)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      )
+    }
+
+    return response.json()
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('Failed to fetch jobs')
+  }
+}
+
+export const getJobById = async (id: string): Promise<any> => {
+  try {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/jobs/${id}`)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      )
+    }
+
+    return response.json()
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('Failed to fetch job')
+  }
+}
+
+export const createJob = async (jobData: any): Promise<any> => {
+  try {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/jobs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(jobData),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      )
+    }
+
+    return response.json()
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('Failed to create job')
+  }
+}
+
+// Queues API functions
+export const getQueueStats = async (): Promise<any> => {
+  try {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/queues/stats`)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      )
+    }
+
+    return response.json()
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('Failed to fetch queue stats')
+  }
+}
+
+export const addProcessingJob = async (jobData: {
+  jobType: string
+  assetId: number
+  priority?: number
+  options?: any
+  delay?: number
+}): Promise<any> => {
+  try {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/queues/jobs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(jobData),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(
+        errorData.error || `HTTP ${response.status}: ${response.statusText}`
+      )
+    }
+
+    return response.json()
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('Failed to add processing job')
+  }
+}
+
+// Health check function
+export const checkBackendHealth = async (): Promise<boolean> => {
+  try {
+    const response = await fetchWithTimeout('http://localhost:5000/health', {
+      method: 'GET',
+      signal: AbortSignal.timeout(5000), // 5 second timeout
+    })
+    return response.ok
+  } catch (error) {
+    console.error('Backend health check failed:', error)
+    return false
+  }
 }

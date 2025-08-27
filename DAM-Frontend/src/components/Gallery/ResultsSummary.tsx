@@ -21,12 +21,15 @@ const ResultsSummary: React.FC<ResultsSummaryProps> = ({
       <div className="flex items-center space-x-4">
         <p className="text-sm text-gray-600">
           Showing <span className="font-medium">{displayAssets.length}</span> of{' '}
-          <span className="font-medium">{displayPagination?.total || 0}</span>{' '}
+          <span className="font-medium">
+            {displayPagination?.totalItems || 0}
+          </span>{' '}
           assets
         </p>
-        {displayPagination && displayPagination.total > 0 && (
+        {displayPagination && displayPagination.totalItems > 0 && (
           <span className="text-sm text-gray-500">
-            Page {displayPagination.page} of {displayPagination.totalPages}
+            Page {displayPagination.currentPage} of{' '}
+            {displayPagination.totalPages}
           </span>
         )}
       </div>

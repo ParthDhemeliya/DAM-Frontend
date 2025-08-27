@@ -66,9 +66,7 @@ const Analytics: React.FC = () => {
       setPopularAssets(popularData.data)
       setRealTimeStats(realTimeData.data)
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : 'Failed to fetch analytics data'
-      )
+      // Handle error silently
     } finally {
       setLoading(false)
     }
@@ -79,7 +77,7 @@ const Analytics: React.FC = () => {
       const realTimeData = await getRealTimeStats()
       setRealTimeStats(realTimeData.data)
     } catch (err) {
-      console.log(err)
+      // Handle error silently
     }
   }
 
@@ -108,7 +106,7 @@ const Analytics: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <div className="text-red-500 text-6xl mb-4">!</div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
             Error Loading Analytics
           </h2>

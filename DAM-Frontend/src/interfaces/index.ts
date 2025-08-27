@@ -25,12 +25,36 @@ export interface Asset {
 }
 
 export interface Pagination {
+  currentPage: number
+  limit: number
+  totalItems: number
+  totalPages: number
+  hasNext: boolean
+  hasPrev: boolean
+}
+
+// Backend pagination format (what the API actually returns)
+export interface BackendPagination {
   page: number
   limit: number
   total: number
   totalPages: number
   hasNext: boolean
   hasPrev: boolean
+}
+
+// Helper function to convert backend pagination to frontend format
+export const mapBackendPagination = (
+  backendPagination: BackendPagination
+): Pagination => {
+  return {
+    currentPage: backendPagination.page,
+    limit: backendPagination.limit,
+    totalItems: backendPagination.total,
+    totalPages: backendPagination.totalPages,
+    hasNext: backendPagination.hasNext,
+    hasPrev: backendPagination.hasPrev,
+  }
 }
 
 export interface AssetFilters {
@@ -57,30 +81,4 @@ export interface SearchFilters {
   status?: string
   sortBy?: string
   sortOrder?: string
-}
-
-export interface UploadSummary {
-  uploaded: number
-  replaced: number
-  skipped: number
-}
-
-export interface AssetData {
-  id: string
-  filename: string
-  original_name: string
-  file_path: string
-  file_size: number
-  mime_type: string
-  category: string
-  created_at: string
-  updated_at: string
-}
-
-export interface UploadResponse {
-  success: boolean
-  data: AssetData | AssetData[]
-  message: string
-  summary: UploadSummary
-  count?: number
 }

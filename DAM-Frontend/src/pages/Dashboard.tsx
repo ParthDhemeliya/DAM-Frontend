@@ -1,67 +1,6 @@
-import { useEffect, useState } from 'react'
-import { uploadFiles, clearFiles } from '../store/slices/uploadSlice'
-import type { RootState } from '../store/store'
-import {
-  FileUploadArea,
-  FileList,
-  FeaturesGrid,
-  Footer,
-  UploadSummary,
-  UploadProgress,
-} from '../components/Dashboard'
-import { useAppDispatch, useAppSelector } from '../store/hooks'
-import { useToast } from '../hooks/useToast'
+import { FeaturesGrid, Footer, SimpleUpload } from '../components/Dashboard'
 
 export default function Dashboard() {
-  const dispatch = useAppDispatch()
-  const {
-    files,
-    uploading,
-    error,
-    success,
-    uploadSummary,
-    currentUploadFile,
-    totalUploadProgress,
-  } = useAppSelector((state: RootState) => state.upload)
-  const { showError } = useToast()
-  const [showUploadSummary, setShowUploadSummary] = useState(false)
-
-  // Handle error notifications
-  useEffect(() => {
-    if (error) {
-      showError(error)
-    }
-  }, [error, showError])
-
-  // Handle success and show upload summary
-  useEffect(() => {
-    if (
-      success &&
-      uploadSummary &&
-      (uploadSummary.uploaded > 0 ||
-        uploadSummary.replaced > 0 ||
-        uploadSummary.skipped > 0)
-    ) {
-      setShowUploadSummary(true)
-    }
-  }, [success, uploadSummary])
-
-  const handleUpload = async () => {
-    if (files.length > 0) {
-      await dispatch(uploadFiles(files))
-    }
-  }
-
-  const handleCloseUploadSummary = () => {
-    setShowUploadSummary(false)
-    dispatch(clearFiles())
-  }
-
-  const handleUploadMore = () => {
-    setShowUploadSummary(false)
-    dispatch(clearFiles())
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative">
       {/* Enhanced Background Elements */}
@@ -81,54 +20,23 @@ export default function Dashboard() {
             </h1>
 
             <p className="text-xl md:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed font-medium">
-              Upload, organize, and manage your digital files on your fingertips
+              View, organize, and manage your digital files on your fingertips
             </p>
           </div>
 
-          {/* Centered Upload Area with Enhanced Spacing */}
-          <div className="flex justify-center items-center mb-16">
-            <FileUploadArea />
+          {/* File Upload Component */}
+          <div className="mb-16">
+            <SimpleUpload />
           </div>
-        </div>
 
-        {/* File List with Better Spacing */}
-        <div className="mb-16">
-          <FileList
-            files={files}
-            onUpload={handleUpload}
-            uploading={uploading}
-          />
-        </div>
-
-        {/* Features Grid with Better Spacing */}
-        <div className="mb-12">
-          <FeaturesGrid />
+          {/* Features Grid with Better Spacing */}
+          <div className="mb-12">
+            <FeaturesGrid />
+          </div>
         </div>
       </main>
 
       <Footer />
-
-      {/* Upload Progress Modal */}
-      {uploading && (
-        <UploadProgress
-          totalFiles={files.length}
-          uploadedFiles={Math.floor((totalUploadProgress / 100) * files.length)}
-          currentFile={currentUploadFile || files[0]?.name || 'Processing...'}
-          percentage={totalUploadProgress}
-          onCancel={() => {
-            // TODO: Implement cancel upload functionality
-          }}
-        />
-      )}
-
-      {/* Upload Summary Modal */}
-      {showUploadSummary && uploadSummary && uploadSummary.details && (
-        <UploadSummary
-          summary={uploadSummary}
-          onClose={handleCloseUploadSummary}
-          onUploadMore={handleUploadMore}
-        />
-      )}
     </div>
   )
 }

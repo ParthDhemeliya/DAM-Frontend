@@ -7,6 +7,7 @@ import type {
   AssetFilters,
   SearchFilters,
 } from '../../interfaces'
+import { mapBackendPagination } from '../../interfaces'
 
 export interface AssetState {
   assets: Asset[]
@@ -44,15 +45,13 @@ const initialState: AssetState = {
 // Async thunk for fetching assets with filters
 export const fetchAssetsWithFilters = createAsyncThunk(
   'assets/fetchAssetsWithFilters',
-  async (filters: AssetFilters, { rejectWithValue }) => {
-    try {
-      const response = await getAssets(filters.page, filters.limit, filters)
-      return response
-    } catch (error) {
-      return rejectWithValue(
-        error instanceof Error ? error.message : 'Failed to fetch assets'
-      )
-    }
+  async (filters: AssetFilters) => {
+    const response = await getAssets(
+      filters.page || 1,
+      filters.limit || 20,
+      filters
+    )
+    return response
   }
 )
 
@@ -63,8 +62,8 @@ export const searchAssetsAsync = createAsyncThunk(
     try {
       const response = await searchAssets(
         searchFilters.query,
-        searchFilters.page,
-        searchFilters.limit,
+        searchFilters.page || 1,
+        searchFilters.limit || 20,
         searchFilters
       )
       return response
@@ -81,9 +80,28 @@ const assetSlice = createSlice({
   initialState,
   reducers: {
     setFilters: (state, action: PayloadAction<Partial<AssetFilters>>) => {
+      // Check if we're only changing the page (which should preserve other filters)
+      const isOnlyPageChange =
+        Object.keys(action.payload).length === 1 &&
+        action.payload.page !== undefined
+
       state.filters = { ...state.filters, ...action.payload }
-      // Reset to first page when filters change
-      if (action.payload.page === undefined) {
+
+      // Only reset to first page when filters other than page change
+      // But don't reset if we're explicitly setting a page number
+      if (
+        action.payload.page === undefined &&
+        !isOnlyPageChange &&
+        (action.payload.limit !== undefined ||
+          action.payload.sortBy !== undefined ||
+          action.payload.sortOrder !== undefined ||
+          action.payload.fileType !== undefined ||
+          action.payload.dateFrom !== undefined ||
+          action.payload.dateTo !== undefined ||
+          action.payload.tags !== undefined ||
+          action.payload.category !== undefined ||
+          action.payload.status !== undefined)
+      ) {
         state.filters.page = 1
       }
     },
@@ -109,7 +127,7 @@ const assetSlice = createSlice({
     },
     setLimit: (state, action: PayloadAction<number>) => {
       state.filters.limit = action.payload
-      state.filters.page = 1 // Reset to first page when changing limit
+      // Don't auto-reset page when changing limit
     },
     setSortBy: (state, action: PayloadAction<string>) => {
       state.filters.sortBy = action.payload
@@ -119,7 +137,7 @@ const assetSlice = createSlice({
     },
     setFileType: (state, action: PayloadAction<string>) => {
       state.filters.fileType = action.payload
-      state.filters.page = 1
+      // Don't auto-reset page when changing file type
     },
     setDateRange: (
       state,
@@ -127,19 +145,27 @@ const assetSlice = createSlice({
     ) => {
       state.filters.dateFrom = action.payload.dateFrom
       state.filters.dateTo = action.payload.dateTo
-      state.filters.page = 1
+      // Don't auto-reset page when changing date range
     },
     setTags: (state, action: PayloadAction<string[]>) => {
       state.filters.tags = action.payload
-      state.filters.page = 1
+      // Don't auto-reset page when changing tags
     },
     setCategory: (state, action: PayloadAction<string>) => {
       state.filters.category = action.payload
-      state.filters.page = 1
+      // Don't auto-reset page when changing category
     },
     setStatus: (state, action: PayloadAction<string>) => {
       state.filters.status = action.payload
-      state.filters.page = 1
+      // Don't auto-reset page when changing status
+    },
+    refreshAssets: (state) => {
+      // Force refresh by clearing current data
+      state.assets = []
+      state.filteredAssets = []
+      state.pagination = null
+      state.searchResults = []
+      state.searchPagination = null
     },
     clearError: (state) => {
       state.error = null
@@ -157,8 +183,14 @@ const assetSlice = createSlice({
         state.loading = false
         state.assets = action.payload.data
         state.filteredAssets = action.payload.data
-        state.pagination = action.payload.pagination
+        state.pagination = mapBackendPagination(action.payload.pagination)
         state.error = null
+
+        // Also clear search results when fetching new assets to ensure consistency
+        if (state.searchResults.length > 0) {
+          state.searchResults = []
+          state.searchPagination = null
+        }
       })
       .addCase(fetchAssetsWithFilters.rejected, (state, action) => {
         state.loading = false
@@ -172,7 +204,7 @@ const assetSlice = createSlice({
       .addCase(searchAssetsAsync.fulfilled, (state, action) => {
         state.searchLoading = false
         state.searchResults = action.payload.data
-        state.searchPagination = action.payload.pagination
+        state.searchPagination = mapBackendPagination(action.payload.pagination)
         state.searchError = null
       })
       .addCase(searchAssetsAsync.rejected, (state, action) => {
@@ -196,6 +228,7 @@ export const {
   setTags,
   setCategory,
   setStatus,
+  refreshAssets,
   clearError,
 } = assetSlice.actions
 

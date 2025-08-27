@@ -1,10 +1,9 @@
 import React from 'react'
 import { EyeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
-import type { Asset, Pagination } from '../../interfaces'
+import type { Asset } from '../../interfaces'
 
 interface AssetsTableProps {
   displayAssets: Asset[]
-  displayPagination: Pagination | null
   getFileTypeCategory: (mimeType: string) => string
   formatFileSize: (bytes: number) => string
   formatDate: (dateString: string) => string
@@ -14,7 +13,6 @@ interface AssetsTableProps {
 
 const AssetsTable: React.FC<AssetsTableProps> = ({
   displayAssets,
-  displayPagination,
   getFileTypeCategory,
   formatFileSize,
   formatDate,
@@ -50,9 +48,6 @@ const AssetsTable: React.FC<AssetsTableProps> = ({
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
             <tr>
-              <th className="px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                S.No
-              </th>
               <th className="hidden md:table-cell px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 ID
               </th>
@@ -79,12 +74,6 @@ const AssetsTable: React.FC<AssetsTableProps> = ({
                 key={asset.id}
                 className="hover:bg-gray-50 transition-colors duration-150"
               >
-                <td className="px-2 sm:px-4 lg:px-6 py-4 text-xs sm:text-sm font-medium text-gray-900">
-                  {((displayPagination?.page || 1) - 1) *
-                    (displayPagination?.limit || 20) +
-                    index +
-                    1}
-                </td>
                 <td className="hidden md:table-cell px-2 sm:px-4 lg:px-6 py-4 text-xs sm:text-sm text-gray-500">
                   {asset.id}
                 </td>

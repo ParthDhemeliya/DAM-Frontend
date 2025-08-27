@@ -9,9 +9,7 @@ export const GalleryLoader = () => (
   <LoadingSpinner size="xl" text="Loading Asset Gallery..." fullScreen />
 )
 
-export const UploadLoader = () => (
-  <LoadingSpinner size="xl" text="Loading Upload..." fullScreen />
-)
+
 
 export const AnalyticsLoader = () => (
   <LoadingSpinner size="xl" text="Loading Analytics..." fullScreen />
